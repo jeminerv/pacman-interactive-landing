@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAC-MAN: O Produto que Comeu o Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#020408;
+  --deep:#050a10;
+  --card:#080f1a;
+  --yellow:#FFD700;
+  --yellow2:#FFC200;
+  --yellow-dim:rgba(255,215,0,0.12);
+  --cyan:#00FFFF;
+  --cyan2:#00d4d4;
+  --magenta:#FF00FF;
+  --magenta2:#cc00cc;
+  --red:#FF3333;
+  --pink:#FF69B4;
+  --orange:#FF8C00;
+  --green:#00FF41;
+  --white:#E8F4FF;
+  --gray:#4a6080;
+  --border:rgba(0,255,255,0.15);
+  --border-y:rgba(255,215,0,0.2);
+  --glow-c:rgba(0,255,255,0.4);
+  --glow-y:rgba(255,215,0,0.4);
+  --glow-m:rgba(255,0,255,0.3);
+  --maze:#0a0aff;
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--black);
+  color:var(--white);
+  font-family:'Rajdhani',sans-serif;
+  overflow-x:hidden;
+  cursor:crosshair;
+}
+
+/* ── SCANLINE OVERLAY ── */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events:none;
+  z-index:9999;
+}
+
+/* ── CUSTOM CURSOR ── */
+*{cursor:crosshair}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:1000;
+  padding:14px 48px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(2,4,8,0.92);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(20px);
+}
+nav::after{
+  content:'';
+  position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),var(--yellow),var(--magenta),transparent);
+  animation:navline 4s linear infinite;
+}
+@keyframes navline{
+  0%{background-position:0% 50%}
+  100%{background-position:200% 50%}
+}
+.nav-logo{
+  font-family:'Orbitron',monospace;font-size:14px;color:var(--yellow);
+  letter-spacing:.2em;text-decoration:none;
+  text-shadow:0 0 20px var(--yellow),0 0 40px rgba(255,215,0,0.5);
+  transition:all .3s;
+}
+.nav-logo:hover{color:var(--cyan);text-shadow:0 0 20px var(--cyan),0 0 40px rgba(0,255,255,0.5)}
+.nav-links{display:flex;gap:32px;list-style:none}
+.nav-links a{
+  font-size:11px;color:var(--gray);text-decoration:none;
+  font-family:'Share Tech Mono',monospace;letter-spacing:.15em;
+  transition:all .2s;position:relative;
+}
+.nav-links a::before{
+  content:'';position:absolute;bottom:-4px;left:0;right:0;height:1px;
+  background:var(--cyan);transform:scaleX(0);transition:transform .2s;
+}
+.nav-links a:hover{color:var(--cyan);text-shadow:0 0 10px var(--cyan)}
+.nav-links a:hover::before{transform:scaleX(1)}
+
+/* ── HERO ── */
+.hero{
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:100px 48px 60px;position:relative;overflow:hidden;
+  text-align:center;
+}
+.hero-bg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%,rgba(0,255,255,0.04) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 40% at 20% 80%,rgba(255,0,255,0.03) 0%,transparent 50%),
+    radial-gradient(ellipse 50% 50% at 80% 20%,rgba(255,215,0,0.04) 0%,transparent 50%);
+  pointer-events:none;
+}
+.hero-grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,255,0.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,255,255,0.04) 1px,transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;
+  animation:gridpulse 8s ease-in-out infinite;
+}
+@keyframes gridpulse{0%,100%{opacity:.5}50%{opacity:1}}
+
+/* Corner decorations */
+.hero::before,.hero::after{
+  content:'';position:absolute;width:80px;height:80px;
+}
+.hero::before{
+  top:20px;left:20px;
+  border-top:2px solid var(--cyan);border-left:2px solid var(--cyan);
+  box-shadow:inset 0 0 20px rgba(0,255,255,0.1);
+}
+.hero::after{
+  bottom:20px;right:20px;
+  border-bottom:2px solid var(--magenta);border-right:2px solid var(--magenta);
+  box-shadow:inset 0 0 20px rgba(255,0,255,0.1);
+}
+
+.hero-eyebrow{
+  font-family:'Share Tech Mono',monospace;font-size:10px;
+  letter-spacing:.3em;color:var(--cyan);margin-bottom:32px;
+  opacity:0;animation:fadeUp .8s .1s forwards;
+  text-shadow:0 0 20px var(--cyan);
+}
+.hero-title{
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(60px,10vw,130px);
+  font-weight:900;line-height:.9;margin-bottom:8px;
+  opacity:0;animation:fadeUp .8s .25s forwards;
+  position:relative;
+}
+.hero-title .pac{
+  color:var(--yellow);
+  text-shadow:0 0 30px var(--yellow),0 0 60px rgba(255,215,0,0.5),0 0 100px rgba(255,215,0,0.2);
+}
+.hero-title .man{
+  color:var(--white);
+  text-shadow:0 0 20px rgba(232,244,255,0.3);
+}
+.hero-title-glitch{
+  position:relative;
+  display:inline-block;
+}
+.hero-title-glitch::before,.hero-title-glitch::after{
+  content:attr(data-text);
+  position:absolute;top:0;left:0;width:100%;height:100%;
+}
+.hero-title-glitch::before{
+  color:var(--cyan);
+  animation:glitch1 3s infinite;
+  clip-path:polygon(0 0,100% 0,100% 35%,0 35%);
+}
+.hero-title-glitch::after{
+  color:var(--magenta);
+  animation:glitch2 3s infinite;
+  clip-path:polygon(0 65%,100% 65%,100% 100%,0 100%);
+}
+@keyframes glitch1{
+  0%,90%,100%{transform:none;opacity:0}
+  92%{transform:translate(-3px,0);opacity:.8}
+  94%{transform:translate(3px,0);opacity:.6}
+  96%{transform:translate(0,0);opacity:0}
+}
+@keyframes glitch2{
+  0%,90%,100%{transform:none;opacity:0}
+  93%{transform:translate(3px,0);opacity:.8}
+  95%{transform:translate(-3px,0);opacity:.6}
+  97%{transform:translate(0,0);opacity:0}
+}
+
+.hero-sub-title{
+  font-family:'Rajdhani',sans-serif;font-size:clamp(15px,2vw,20px);
+  font-weight:300;color:rgba(232,244,255,0.5);margin-bottom:48px;
+  letter-spacing:.1em;
+  opacity:0;animation:fadeUp .8s .4s forwards;
+}
+.hero-stats{
+  display:flex;gap:0;flex-wrap:wrap;justify-content:center;
+  margin-bottom:56px;
+  opacity:0;animation:fadeUp .8s .55s forwards;
+  border:1px solid var(--border);
+}
+.stat{
+  text-align:center;padding:24px 40px;
+  border-right:1px solid var(--border);
+  position:relative;
+}
+.stat:last-child{border-right:none}
+.stat::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  opacity:0;transition:opacity .3s;
+}
+.stat:hover::before{opacity:1}
+.stat-number{
+  font-family:'Orbitron',monospace;font-size:28px;
+  color:var(--yellow);font-weight:700;display:block;
+  text-shadow:0 0 20px rgba(255,215,0,0.6);
+}
+.stat-label{
+  font-size:9px;color:var(--gray);letter-spacing:.18em;margin-top:4px;
+  font-family:'Share Tech Mono',monospace;display:block;
+}
+.hero-cta{
+  display:inline-flex;align-items:center;gap:12px;
+  background:transparent;color:var(--cyan);
+  font-family:'Orbitron',monospace;font-size:11px;font-weight:700;
+  letter-spacing:.2em;padding:14px 36px;border:1px solid var(--cyan);
+  cursor:pointer;transition:all .2s;text-decoration:none;
+  position:relative;overflow:hidden;
+  opacity:0;animation:fadeUp .8s .7s forwards;
+}
+.hero-cta::before{
+  content:'';position:absolute;inset:0;
+  background:var(--cyan);transform:scaleX(0);transform-origin:left;
+  transition:transform .3s;z-index:-1;
+}
+.hero-cta:hover{color:var(--black);text-shadow:none;box-shadow:0 0 30px rgba(0,255,255,0.4)}
+.hero-cta:hover::before{transform:scaleX(1)}
+
+.hero-dots{
+  position:absolute;bottom:40px;left:50%;transform:translateX(-50%);
+  display:flex;gap:16px;opacity:0;animation:fadeUp .8s .85s forwards;
+}
+.hero-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--cyan);
+  animation:pulse 1.4s ease-in-out infinite;
+  box-shadow:0 0 8px var(--cyan);
+}
+.hero-dot:nth-child(2){animation-delay:.2s;background:var(--yellow);box-shadow:0 0 8px var(--yellow)}
+.hero-dot:nth-child(3){animation-delay:.4s;background:var(--magenta);box-shadow:0 0 8px var(--magenta)}
+@keyframes pulse{0%,100%{opacity:.3;transform:scale(.7)}50%{opacity:1;transform:scale(1.3)}}
+
+/* ── SHARED SECTION ── */
+section{padding:96px 48px}
+.section-inner{max-width:1100px;margin:0 auto}
+.section-label{
+  font-family:'Share Tech Mono',monospace;font-size:9px;
+  letter-spacing:.25em;color:var(--cyan);margin-bottom:20px;
+  display:flex;align-items:center;gap:16px;
+  text-shadow:0 0 15px var(--cyan);
+}
+.section-label::before{
+  content:'';display:block;width:30px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan));
+}
+.section-label::after{
+  content:'';display:block;flex:1;height:1px;
+  background:linear-gradient(90deg,rgba(0,255,255,0.3),transparent);
+}
+.section-title{
+  font-family:'Orbitron',sans-serif;font-size:clamp(24px,3.5vw,44px);
+  font-weight:700;line-height:1.1;margin-bottom:24px;
+  letter-spacing:.05em;
+}
+.section-title .accent{color:var(--cyan)}
+.section-body{
+  font-size:16px;color:rgba(232,244,255,0.6);
+  line-height:1.8;max-width:680px;font-weight:300;
+}
+.divider{
+  width:100%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--border),var(--cyan) 30%,var(--border) 70%,transparent);
+  margin:0;opacity:.5;
+}
+
+/* ── STORY ── */
+.story-section{background:var(--deep)}
+.story-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;margin-top:56px}
+.story-quote{
+  font-family:'Rajdhani',sans-serif;font-size:20px;font-style:italic;
+  color:var(--yellow);line-height:1.6;
+  border-left:3px solid var(--yellow);
+  padding:16px 24px;margin:32px 0;
+  background:rgba(255,215,0,0.04);
+  box-shadow:-4px 0 20px rgba(255,215,0,0.1);
+  text-shadow:0 0 20px rgba(255,215,0,0.3);
+}
+.story-text{font-size:15px;color:rgba(232,244,255,0.6);line-height:1.8;margin-bottom:16px;font-weight:300}
+.pizza-visual{display:flex;flex-direction:column;align-items:center;gap:24px}
+.pizza-svg{width:260px;height:260px;filter:drop-shadow(0 0 30px rgba(255,215,0,0.4))}
+
+/* ── TIMELINE ── */
+.timeline-section{background:var(--black)}
+.timeline{position:relative;margin-top:56px;padding-left:48px}
+.timeline::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:1px;
+  background:linear-gradient(to bottom,var(--cyan),var(--magenta),transparent);
+}
+.timeline-item{position:relative;margin-bottom:52px;padding-left:24px}
+.timeline-item::before{
+  content:'';position:absolute;left:-52px;top:8px;
+  width:10px;height:10px;border-radius:50%;background:var(--cyan);
+  box-shadow:0 0 0 3px rgba(0,255,255,0.15),0 0 20px var(--cyan);
+  animation:timedot 2s ease-in-out infinite;
+}
+.timeline-item:nth-child(even)::before{
+  background:var(--yellow);
+  box-shadow:0 0 0 3px rgba(255,215,0,0.15),0 0 20px var(--yellow);
+}
+@keyframes timedot{0%,100%{box-shadow:0 0 0 3px rgba(0,255,255,0.15),0 0 20px var(--cyan)}50%{box-shadow:0 0 0 6px rgba(0,255,255,0.08),0 0 30px var(--cyan)}}
+.timeline-year{
+  font-family:'Share Tech Mono',monospace;font-size:10px;
+  color:var(--cyan);letter-spacing:.2em;margin-bottom:6px;
+  text-shadow:0 0 10px var(--cyan);
+}
+.timeline-title{font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px}
+.timeline-text{font-size:13px;color:rgba(232,244,255,0.55);line-height:1.7;font-weight:300}
+
+/* ── PRODUCT ── */
+.product-section{background:var(--deep)}
+.product-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;margin-top:56px;background:var(--border)}
+.product-card{
+  background:var(--card);padding:32px 28px;position:relative;overflow:hidden;
+  transition:all .3s;
+}
+.product-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--cyan),var(--magenta));
+  transform:scaleX(0);transition:transform .3s;
+}
+.product-card:hover{background:#0a1520;transform:translateY(-2px)}
+.product-card:hover::before{transform:scaleX(1)}
+.card-num{
+  font-family:'Orbitron',monospace;font-size:40px;
+  color:rgba(0,255,255,0.08);font-weight:900;
+  display:block;line-height:1;margin-bottom:12px;
+  transition:color .3s;
+}
+.product-card:hover .card-num{color:rgba(0,255,255,0.2)}
+.card-title{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--white);margin-bottom:10px;letter-spacing:.05em}
+.card-text{font-size:13px;color:rgba(232,244,255,0.5);line-height:1.65;font-weight:300}
+
+/* ── GHOSTS ── */
+.ghosts-section{background:var(--black)}
+.ghosts-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:56px;background:var(--border)}
+.ghost-card{
+  padding:28px 24px;background:var(--card);
+  position:relative;transition:transform .3s,background .3s;
+  overflow:hidden;
+}
+.ghost-card::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at center,currentColor,transparent 70%);
+  opacity:0;transition:opacity .3s;
+}
+.ghost-card:hover{transform:translateY(-4px);background:var(--deep)}
+.ghost-card:hover::after{opacity:.04}
+.ghost-icon{font-size:52px;margin-bottom:16px;display:block;filter:drop-shadow(0 0 16px currentColor)}
+.ghost-name{font-family:'Orbitron',monospace;font-size:12px;letter-spacing:.15em;margin-bottom:4px;font-weight:700}
+.ghost-jp{font-size:10px;color:var(--gray);margin-bottom:12px;font-family:'Share Tech Mono',monospace}
+.ghost-behavior{
+  font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.15em;
+  padding:4px 10px;display:inline-block;margin-bottom:14px;
+}
+.ghost-text{font-size:12px;color:rgba(232,244,255,0.5);line-height:1.65;font-weight:300}
+.blinky .ghost-name,.blinky .ghost-behavior,.blinky .ghost-icon{color:var(--red)}
+.blinky .ghost-behavior{background:rgba(255,51,51,.08);border:1px solid rgba(255,51,51,.4)}
+.pinky .ghost-name,.pinky .ghost-behavior,.pinky .ghost-icon{color:var(--pink)}
+.pinky .ghost-behavior{background:rgba(255,105,180,.08);border:1px solid rgba(255,105,180,.4)}
+.inky .ghost-name,.inky .ghost-behavior,.inky .ghost-icon{color:var(--cyan)}
+.inky .ghost-behavior{background:rgba(0,255,255,.08);border:1px solid rgba(0,255,255,.4)}
+.clyde .ghost-name,.clyde .ghost-behavior,.clyde .ghost-icon{color:var(--orange)}
+.clyde .ghost-behavior{background:rgba(255,140,0,.08);border:1px solid rgba(255,140,0,.4)}
+
+/* ── TECH ── */
+.tech-section{background:var(--deep)}
+.tech-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;margin-top:56px}
+.code-block{
+  background:#020810;border:1px solid rgba(0,255,255,0.2);
+  padding:28px;font-family:'Share Tech Mono',monospace;font-size:12px;
+  line-height:1.9;color:rgba(232,244,255,0.7);overflow-x:auto;
+  box-shadow:0 0 40px rgba(0,255,255,0.05),inset 0 0 40px rgba(0,0,0,0.5);
+  position:relative;
+}
+.code-block::before{
+  content:'// GHOST_AI.SYS';position:absolute;top:-1px;left:20px;
+  font-family:'Share Tech Mono',monospace;font-size:9px;
+  color:var(--cyan);background:var(--deep);padding:0 8px;
+  text-shadow:0 0 10px var(--cyan);
+}
+.code-comment{color:rgba(0,255,65,0.6)}
+.code-key{color:var(--yellow)}
+.code-val{color:var(--cyan)}
+.code-str{color:var(--pink)}
+.insight-list{display:flex;flex-direction:column;gap:16px}
+.insight-item{
+  padding:20px 24px;border-left:2px solid var(--cyan);
+  background:var(--card);
+  position:relative;overflow:hidden;
+  transition:border-color .3s,background .3s;
+}
+.insight-item:hover{border-color:var(--yellow);background:#090f1a}
+.insight-item-title{
+  font-family:'Orbitron',sans-serif;font-size:13px;
+  font-weight:700;color:var(--white);margin-bottom:6px;
+}
+.insight-item-text{font-size:12px;color:rgba(232,244,255,0.5);line-height:1.65;font-weight:300}
+
+/* ── IMPACT ── */
+.impact-section{background:var(--black)}
+.impact-numbers{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:1px;background:var(--border);margin-top:56px;margin-bottom:40px;
+}
+.impact-number-item{
+  background:var(--card);padding:40px 28px;text-align:center;
+  position:relative;overflow:hidden;transition:background .3s;
+}
+.impact-number-item::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--yellow),transparent);
+  transform:scaleX(0);transition:transform .4s;
+}
+.impact-number-item:hover{background:#080f1a}
+.impact-number-item:hover::after{transform:scaleX(1)}
+.impact-num{
+  font-family:'Orbitron',monospace;font-size:44px;
+  color:var(--yellow);display:block;margin-bottom:10px;font-weight:700;
+  text-shadow:0 0 30px rgba(255,215,0,0.5);
+}
+.impact-desc{font-size:12px;color:rgba(232,244,255,0.45);line-height:1.6;font-weight:300}
+.impact-quote-block{
+  background:var(--card);
+  border:1px solid var(--border-y);
+  padding:44px;text-align:center;
+  box-shadow:0 0 60px rgba(255,215,0,0.05);
+}
+.impact-quote{
+  font-family:'Rajdhani',sans-serif;font-size:20px;font-style:italic;
+  color:var(--white);line-height:1.7;margin-bottom:16px;font-weight:300;
+}
+.impact-quote-attr{
+  font-size:11px;color:var(--gray);
+  font-family:'Share Tech Mono',monospace;letter-spacing:.1em;
+}
+
+/* ── PM ANALYSIS ── */
+.pm-section{background:var(--deep)}
+.pm-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);margin-top:56px}
+.pm-col{background:var(--card);padding:32px 28px}
+.pm-col-header{
+  display:flex;align-items:center;gap:12px;
+  margin-bottom:24px;padding-bottom:16px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.pm-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px currentColor}
+.pm-col-title{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--gray)}
+.pm-items{display:flex;flex-direction:column;gap:14px}
+.pm-item{
+  font-size:13px;color:rgba(232,244,255,0.55);line-height:1.65;
+  padding-left:14px;border-left:2px solid rgba(0,255,255,0.15);
+  font-weight:300;
+}
+
+/* ── GAME SECTION ── */
+.game-section{background:var(--black);text-align:center}
+.game-wrapper{
+  display:inline-block;position:relative;margin:48px auto 0;
+}
+.game-frame{
+  position:relative;
+  display:inline-flex;
+  flex-direction:column;
+  background:var(--black);
+  border:2px solid var(--cyan);
+  box-shadow:
+    0 0 0 1px rgba(0,255,255,0.1),
+    0 0 40px rgba(0,255,255,0.15),
+    0 0 80px rgba(0,255,255,0.08),
+    inset 0 0 40px rgba(0,0,0,0.8);
+}
+/* Corner brackets on game */
+.game-frame::before,.game-frame::after{
+  content:'';position:absolute;width:20px;height:20px;z-index:10;
+}
+.game-frame::before{top:-2px;left:-2px;border-top:3px solid var(--yellow);border-left:3px solid var(--yellow)}
+.game-frame::after{bottom:-2px;right:-2px;border-bottom:3px solid var(--yellow);border-right:3px solid var(--yellow)}
+
+canvas{display:block;image-rendering:pixelated}
+
+.game-ui{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 20px;background:rgba(0,0,0,0.9);
+  border-top:1px solid rgba(0,255,255,0.2);
+}
+.game-score-label{
+  font-family:'Share Tech Mono',monospace;font-size:9px;
+  color:var(--gray);letter-spacing:.2em;margin-bottom:2px;
+}
+.game-score-val{
+  font-family:'Orbitron',monospace;font-size:22px;
+  color:var(--yellow);font-weight:700;
+  text-shadow:0 0 15px rgba(255,215,0,0.6);
+}
+.game-controls{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--gray);text-align:right;line-height:1.6}
+
+.game-overlay{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  background:rgba(2,4,8,0.93);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:20px;
+  backdrop-filter:blur(4px);
+  z-index:10;
+}
+.game-overlay-title{
+  font-family:'Orbitron',monospace;font-size:28px;font-weight:900;
+  color:var(--yellow);letter-spacing:.25em;
+  text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);
+  animation:blink 1s step-end infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.game-overlay-sub{
+  font-family:'Share Tech Mono',monospace;font-size:11px;
+  color:var(--cyan);letter-spacing:.15em;
+  text-shadow:0 0 15px var(--cyan);
+}
+.game-overlay-score{
+  font-family:'Orbitron',monospace;font-size:14px;
+  color:var(--gray);letter-spacing:.1em;
+}
+.btn-start{
+  background:transparent;color:var(--cyan);
+  font-family:'Orbitron',monospace;font-size:12px;font-weight:700;
+  letter-spacing:.2em;padding:14px 36px;
+  border:2px solid var(--cyan);cursor:pointer;
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.btn-start::before{
+  content:'';position:absolute;inset:0;
+  background:var(--cyan);transform:scaleY(0);transform-origin:bottom;
+  transition:transform .2s;z-index:-1;
+}
+.btn-start:hover{color:var(--black);box-shadow:0 0 30px rgba(0,255,255,0.5)}
+.btn-start:hover::before{transform:scaleY(1)}
+
+/* ── CONCLUSION ── */
+.conclusion-section{background:var(--deep)}
+.conclusion-quote{
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(20px,3vw,36px);font-weight:700;
+  line-height:1.3;text-align:center;margin:56px auto;
+  max-width:820px;letter-spacing:.05em;
+}
+.conclusion-quote span{
+  color:var(--yellow);
+  text-shadow:0 0 20px rgba(255,215,0,0.5);
+}
+.conclusion-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:48px;background:var(--border)}
+.conclusion-card{
+  background:var(--card);padding:32px 28px;
+  transition:background .3s;position:relative;overflow:hidden;
+}
+.conclusion-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--magenta),transparent);
+  transform:scaleX(0);transition:transform .4s;
+}
+.conclusion-card:hover{background:#0a0f1a}
+.conclusion-card:hover::before{transform:scaleX(1)}
+.conclusion-card-badge{
+  font-family:'Share Tech Mono',monospace;font-size:8px;
+  letter-spacing:.2em;color:var(--magenta);
+  background:rgba(255,0,255,0.06);border:1px solid rgba(255,0,255,0.25);
+  padding:4px 10px;display:inline-block;margin-bottom:16px;
+  text-shadow:0 0 10px var(--magenta);
+}
+.conclusion-card-title{font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:var(--white);margin-bottom:10px}
+.conclusion-card-text{font-size:13px;color:rgba(232,244,255,0.45);line-height:1.65;font-weight:300}
+
+/* ── FOOTER ── */
+footer{
+  background:var(--black);
+  border-top:1px solid var(--border);
+  padding:32px 48px;display:flex;align-items:center;justify-content:space-between;
+  position:relative;
+}
+footer::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),var(--magenta),transparent);
+}
+.footer-left{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--gray)}
+.footer-right{font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(0,255,255,0.3)}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s,transform .7s}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  nav{padding:14px 20px}
+  .nav-links{display:none}
+  section{padding:64px 20px}
+  .hero{padding:100px 20px 60px}
+  .hero::before,.hero::after{display:none}
+  .hero-stats{border:none}
+  .stat{border:1px solid var(--border);margin:2px}
+  .story-grid,.tech-grid{grid-template-columns:1fr}
+  .product-grid,.ghosts-grid,.pm-grid,.conclusion-cards{grid-template-columns:1fr}
+  .impact-numbers{grid-template-columns:1fr}
+  footer{flex-direction:column;gap:10px;text-align:center}
+  .game-wrapper{overflow-x:auto;width:100%;display:block}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">PAC-MAN · ESTUDO DE PRODUTO</a>
+  <ul class="nav-links">
+    <li><a href="#historia">História</a></li>
+    <li><a href="#produto">Produto</a></li>
+    <li><a href="#tecnologia">Tecnologia</a></li>
+    <li><a href="#impacto">Impacto</a></li>
+    <li><a href="#jogo">Jogar</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <p class="hero-eyebrow">ESTUDO DE PRODUTO · TECNOLOGIA · IMPACTO CULTURAL</p>
+  <h1 class="hero-title">
+    <span class="hero-title-glitch" data-text="PAC-MAN">
+      <span class="pac">PAC</span><span class="man">-MAN</span>
+    </span>
+  </h1>
+  <p class="hero-sub-title">2KB de código. 40 anos de cultura. Uma decisão de produto que ninguém esperava.</p>
+  <div class="hero-stats">
+    <div class="stat">
+      <span class="stat-number">$14B+</span>
+      <span class="stat-label">em receita total</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number">293K</span>
+      <span class="stat-label">máquinas instaladas</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number">94%</span>
+      <span class="stat-label">reconhecimento nos EUA</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number">1980</span>
+      <span class="stat-label">lançamento no Japão</span>
+    </div>
+  </div>
+  <a href="#historia" class="hero-cta">EXPLORAR O PROJETO ↓</a>
+  <div class="hero-dots">
+    <div class="hero-dot"></div>
+    <div class="hero-dot"></div>
+    <div class="hero-dot"></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- HISTÓRIA -->
+<section class="story-section" id="historia">
+  <div class="section-inner">
+    <p class="section-label reveal">A ORIGEM</p>
+    <h2 class="section-title reveal">Uma fatia de pizza<br>que mudou a <span class="accent">indústria</span></h2>
+    <div class="story-grid">
+      <div>
+        <p class="story-text reveal">Em 1979, um jovem de 24 anos chamado <strong style="color:var(--yellow)">Toru Iwatani</strong> trabalhava na Namco sentindo que os videogames haviam se tornado um território hostil. Arcades cheios de jogos de guerra, navios explodindo, alienígenas sendo destruídos. Tudo pensado para homens jovens.</p>
+        <blockquote class="story-quote reveal">"Eu queria transformar os arcades em lugares mais vivos, que mulheres e casais quisessem frequentar."</blockquote>
+        <p class="story-text reveal">A virada veio em um momento banal: olhando para uma pizza com uma fatia removida, ele enxergou um personagem. Uma boca. Um ser movido pela fome, não pela agressão. A ideia central nasceu de uma palavra japonesa: <em style="color:var(--yellow)">paku-paku</em>, onomatopeia para o som de uma boca se abrindo e fechando ao comer.</p>
+        <p class="story-text reveal">O jogo original no Japão se chamava <strong style="color:var(--yellow)">Puck Man</strong>. Quando foi exportado para os Estados Unidos, a Midway Games trocou o nome para <strong style="color:var(--yellow)">Pac-Man</strong> por uma razão prática: nos EUA, era fácil riscar o "P" das máquinas e transformá-lo em outra letra.</p>
+      </div>
+      <div class="pizza-visual reveal">
+        <svg class="pizza-svg" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <path d="M130 130 L230 75 A115 115 0 1 0 230 185 Z" fill="#FFD700" filter="url(#glow)" opacity=".9"/>
+          <path d="M130 130 L218 83 A100 100 0 1 0 218 177 Z" fill="#CC3300" opacity=".7"/>
+          <path d="M130 130 L205 91 A90 90 0 1 0 205 169 Z" fill="#FFD700" opacity=".6"/>
+          <circle cx="155" cy="110" r="7" fill="#8B0000" opacity=".8"/>
+          <circle cx="140" cy="160" r="7" fill="#8B0000" opacity=".8"/>
+          <circle cx="185" cy="148" r="7" fill="#8B0000" opacity=".8"/>
+          <circle cx="175" cy="120" r="5" fill="#228B22" opacity=".8"/>
+          <line x1="130" y1="130" x2="230" y2="75" stroke="rgba(0,0,0,.6)" stroke-width="2"/>
+          <line x1="130" y1="130" x2="230" y2="185" stroke="rgba(0,0,0,.6)" stroke-width="2"/>
+        </svg>
+        <svg viewBox="0 0 120 80" width="180" xmlns="http://www.w3.org/2000/svg">
+          <path d="M60 40 L100 18 A45 45 0 1 0 100 62 Z" fill="#FFD700" filter="url(#glow)"/>
+          <circle cx="78" cy="24" r="4" fill="#000"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- TIMELINE -->
+<section class="timeline-section" id="historia2">
+  <div class="section-inner">
+    <p class="section-label reveal">LINHA DO TEMPO</p>
+    <h2 class="section-title reveal">De máquina de arcade<br>a <span class="accent">fenômeno global</span></h2>
+    <div class="timeline reveal">
+      <div class="timeline-item">
+        <div class="timeline-year">1977</div>
+        <div class="timeline-title">Iwatani entra na Namco</div>
+        <div class="timeline-text">Com 22 anos, o designer entra na Namco atraído pelo slogan "Criação de Play". Sua missão inicial era criar jogos de pinball digitais, mas logo percebe que quer algo diferente.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">INÍCIO DE 1979</div>
+        <div class="timeline-title">O projeto começa</div>
+        <div class="timeline-text">Iwatani lidera uma equipe de 9 pessoas. A palavra-chave do projeto é "taberu", que significa comer. O conceito: um personagem que não mata, mas devora. Um jogo baseado em apetite, não em agressão.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">22 MAIO 1980</div>
+        <div class="timeline-title">Lançamento no Japão (Shibuya, Tóquio)</div>
+        <div class="timeline-text">A primeira máquina de Puck Man é instalada no bairro de Shibuya. Gamers tradicionais ficam indiferentes. Mas quem nunca havia jogado antes, mulheres, casais e idosos, fica fascinado.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">OUTUBRO 1980</div>
+        <div class="timeline-title">Chegada nos Estados Unidos como Pac-Man</div>
+        <div class="timeline-text">A Midway Games licencia e distribui o jogo nos EUA. A expectativa inicial era de 5.000 unidades. O resultado: mais de 100.000 unidades vendidas em um ano. Arcades compram fileiras inteiras de máquinas.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">1981</div>
+        <div class="timeline-title">$1 bilhão em 15 meses</div>
+        <div class="timeline-text">O jogo arrecada mais de $8,1 milhões por semana nos EUA. Em 15 meses, supera $1 bilhão em receita de fichas, mais do que o filme Star Wars no mesmo período. O termo "Pac-Man Fever" entra no vocabulário popular.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">1982</div>
+        <div class="timeline-title">Império de licenciamento e cultura pop</div>
+        <div class="timeline-text">Mais de 500 produtos licenciados. 30 milhões de jogadores ativos nos EUA. Série de TV, música no Top 10, lancheiras, relógios e cereais. A Midway tinha entre 95 e 105 empresas licenciadas, incluindo a AT&T.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">2010</div>
+        <div class="timeline-title">Guinness: 293.822 máquinas em todo o mundo</div>
+        <div class="timeline-text">Iwatani recebe o certificado do Guinness World Records em Amsterdã. O jogo é oficialmente o arcade com mais máquinas físicas instaladas na história. O MoMA em Nova York adicionou Pac-Man à sua coleção permanente em 2012.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">2016</div>
+        <div class="timeline-title">$14 bilhões em receita acumulada</div>
+        <div class="timeline-text">Somados arcades, ports para consoles, mobile, licenciamentos e merchandise, a franquia acumula mais de $14 bilhões. O personagem é reconhecido por 94% dos americanos, à frente do Mario, com 93%.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- PRODUTO -->
+<section class="product-section" id="produto">
+  <div class="section-inner">
+    <p class="section-label reveal">VISÃO DE PRODUTO</p>
+    <h2 class="section-title reveal">As decisões que<br><span class="accent">fizeram tudo funcionar</span></h2>
+    <p class="section-body reveal">Pac-Man não foi um acidente. Cada elemento do jogo foi uma decisão de produto deliberada, com um usuário-alvo claro e uma hipótese de comportamento humano por trás.</p>
+    <div class="product-grid reveal">
+      <div class="product-card">
+        <span class="card-num">01</span>
+        <div class="card-title">Usuário-alvo definido antes do produto</div>
+        <div class="card-text">Iwatani começou pelo usuário, não pela mecânica. Sua hipótese: mulheres e casais também querem se divertir em arcades, mas os jogos existentes os excluem. O personagem, as cores e a ausência de violência foram consequências diretas dessa decisão inicial de produto.</div>
+      </div>
+      <div class="product-card">
+        <span class="card-num">02</span>
+        <div class="card-title">Conceito universal: comer</div>
+        <div class="card-text">O ato de comer é a ação mais universal que existe. Não requer contexto cultural, faixa etária ou gênero para fazer sentido. Essa escolha de conceito central garantiu que qualquer pessoa entendesse a mecânica em segundos, sem tutorial.</div>
+      </div>
+      <div class="product-card">
+        <span class="card-num">03</span>
+        <div class="card-title">Controles de entrada única</div>
+        <div class="card-text">Apenas um joystick. Nenhum botão de ação. A barreira de entrada mais baixa possível. Essa decisão foi intencional para não intimidar quem nunca havia jogado um videogame, enquanto ainda permitia profundidade estratégica para jogadores experientes.</div>
+      </div>
+      <div class="product-card">
+        <span class="card-num">04</span>
+        <div class="card-title">O power-up como inversão de dinâmica</div>
+        <div class="card-text">O Power Pellet foi a primeira implementação de power-up na história dos videogames. Mais do que uma mecânica, é uma decisão emocional: conceder ao jogador momentos de catarse onde o perseguido vira o perseguidor. Um alívio de tensão projetado deliberadamente.</div>
+      </div>
+      <div class="product-card">
+        <span class="card-num">05</span>
+        <div class="card-title">Cut scenes: narrativa como respiro</div>
+        <div class="card-text">Pac-Man foi o primeiro jogo com cut scenes, pequenas animações cômicas entre fases. Iwatani as adicionou para aliviar a tensão constante da perseguição. Uma decisão de UX sofisticada: reconhecer que o jogador precisa de momentos de leveza para continuar engajado.</div>
+      </div>
+      <div class="product-card">
+        <span class="card-num">06</span>
+        <div class="card-title">Personagem com identidade própria</div>
+        <div class="card-text">Pac-Man foi o primeiro personagem original de videogame a se tornar um mascote de marca. Antes dele, jogos eram mecânicas sem rosto. A decisão de criar um ser com nome, expressão e personalidade abriu o caminho para toda a indústria de games centrada em personagens.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- FANTASMAS -->
+<section class="ghosts-section" id="tecnologia">
+  <div class="section-inner">
+    <p class="section-label reveal">INTELIGÊNCIA ARTIFICIAL</p>
+    <h2 class="section-title reveal">Quatro fantasmas.<br>Quatro algoritmos.<br><span class="accent">Uma ilusão de vida.</span></h2>
+    <p class="section-body reveal">Em 1980, com apenas 2KB de memória disponível, Iwatani e sua equipe criaram quatro personagens com comportamentos distintos. Cada fantasma tinha um algoritmo diferente, e juntos criavam algo que parecia inteligência real.</p>
+    <div class="ghosts-grid reveal">
+      <div class="ghost-card blinky">
+        <span class="ghost-icon">👻</span>
+        <div class="ghost-name">BLINKY</div>
+        <div class="ghost-jp">影 "SHADOW" / Oikake · Perseguidor</div>
+        <span class="ghost-behavior">AGRESSIVO</span>
+        <div class="ghost-text">Mira diretamente na posição atual do Pac-Man. Quando 75% dos pontos são comidos, entra no modo "Cruise Elroy": velocidade aumenta progressivamente. É a ameaça constante que força o jogador a nunca parar de se mover.</div>
+      </div>
+      <div class="ghost-card pinky">
+        <span class="ghost-icon">👻</span>
+        <div class="ghost-name">PINKY</div>
+        <div class="ghost-jp">速 "SPEEDY" / Machibuse · Emboscador</div>
+        <span class="ghost-behavior">EMBOSCADA</span>
+        <div class="ghost-text">Não persegue o Pac-Man diretamente: tenta interceptá-lo. Mira 4 tiles à frente da direção atual do personagem. Contém um bug famoso: quando o Pac-Man se move para cima, Pinky mira 4 tiles para cima e 4 para a esquerda simultaneamente.</div>
+      </div>
+      <div class="ghost-card inky">
+        <span class="ghost-icon">👻</span>
+        <div class="ghost-name">INKY</div>
+        <div class="ghost-jp">気 "BASHFUL" / Kimagure · Caprichoso</div>
+        <span class="ghost-behavior">IMPREVISÍVEL</span>
+        <div class="ghost-text">O mais complexo. Usa tanto a posição do Pac-Man quanto a posição do Blinky para calcular seu alvo. Esse sistema combinado cria trajetórias erráticas que nenhum jogador consegue prever completamente, gerando a sensação de que o fantasma "pensa".</div>
+      </div>
+      <div class="ghost-card clyde">
+        <span class="ghost-icon">👻</span>
+        <div class="ghost-name">CLYDE</div>
+        <div class="ghost-jp">愚 "POKEY" / Otoboke · Fingindo ignorância</div>
+        <span class="ghost-behavior">ERRÁTICO</span>
+        <div class="ghost-text">Quando está longe (mais de 8 tiles), age como o Blinky. Quando fica perto, abandona a perseguição e recua para seu canto. Cria uma sensação de comportamento aleatório, mas é 100% determinístico. O nome japonês "Otoboke" significa "fingir que não sabe".</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- TECH -->
+<section class="tech-section">
+  <div class="section-inner">
+    <p class="section-label reveal">ARQUITETURA TÉCNICA</p>
+    <h2 class="section-title reveal">Design de sistemas<br><span class="accent">com restrição extrema</span></h2>
+    <div class="tech-grid reveal">
+      <div>
+        <div class="code-block">
+<span class="code-comment">// Sistema de modos dos fantasmas</span>
+<span class="code-comment">// Nível 1 · timing em segundos</span>
+
+ghost.modes = [
+  { <span class="code-key">mode</span>: <span class="code-str">"SCATTER"</span>, <span class="code-key">duration</span>: <span class="code-val">7</span>  },
+  { <span class="code-key">mode</span>: <span class="code-str">"CHASE"</span>,   <span class="code-key">duration</span>: <span class="code-val">20</span> },
+  { <span class="code-key">mode</span>: <span class="code-str">"SCATTER"</span>, <span class="code-key">duration</span>: <span class="code-val">7</span>  },
+  { <span class="code-key">mode</span>: <span class="code-str">"CHASE"</span>,   <span class="code-key">duration</span>: <span class="code-val">20</span> },
+  <span class="code-comment">// → CHASE permanente</span>
+];
+
+<span class="code-comment">// Cálculo do alvo: Blinky</span>
+blinky.target = {
+  <span class="code-key">x</span>: pacman.<span class="code-val">x</span>,
+  <span class="code-key">y</span>: pacman.<span class="code-val">y</span>
+};
+
+<span class="code-comment">// Cálculo do alvo: Pinky</span>
+pinky.target = {
+  <span class="code-key">x</span>: pacman.<span class="code-val">x</span> + dir.<span class="code-val">x</span> * <span class="code-val">4</span>,
+  <span class="code-key">y</span>: pacman.<span class="code-val">y</span> + dir.<span class="code-val">y</span> * <span class="code-val">4</span>
+};
+
+<span class="code-comment">// Cálculo do alvo: Inky (usa Blinky)</span>
+pivot = {
+  <span class="code-key">x</span>: pacman.<span class="code-val">x</span> + dir.<span class="code-val">x</span> * <span class="code-val">2</span>,
+  <span class="code-key">y</span>: pacman.<span class="code-val">y</span> + dir.<span class="code-val">y</span> * <span class="code-val">2</span>
+};
+inky.target = {
+  <span class="code-key">x</span>: pivot.<span class="code-val">x</span> + (pivot.<span class="code-val">x</span> - blinky.<span class="code-val">x</span>),
+  <span class="code-key">y</span>: pivot.<span class="code-val">y</span> + (pivot.<span class="code-val">y</span> - blinky.<span class="code-val">y</span>)
+};</div>
+      </div>
+      <div class="insight-list">
+        <div class="insight-item">
+          <div class="insight-item-title">2KB de RAM. Quatro personalidades.</div>
+          <div class="insight-item-text">Todo o sistema de IA dos fantasmas foi implementado em menos de 2 kilobytes de memória. Uma restrição brutal que forçou soluções elegantes: em vez de pathfinding complexo, cada fantasma usa apenas cálculo de tile-alvo e preferência de direção em interseções.</div>
+        </div>
+        <div class="insight-item">
+          <div class="insight-item-title">Scatter e Chase: ritmo deliberado</div>
+          <div class="insight-item-text">O jogo alterna entre modos Scatter (fantasmas vão para seus cantos) e Chase (perseguição ativa). Esse ritmo cria janelas de oportunidade e momentos de tensão de forma cíclica e previsível: o jogador pode aprender e antecipar.</div>
+        </div>
+        <div class="insight-item">
+          <div class="insight-item-title">Atualização a 60Hz, decisões por tile</div>
+          <div class="insight-item-text">Os algoritmos são atualizados a cada frame. Mas as decisões reais de direção acontecem apenas nas interseções do labirinto, um sistema inteligente que reduz o custo computacional e mantém o comportamento consistente.</div>
+        </div>
+        <div class="insight-item">
+          <div class="insight-item-title">O bug que virou feature</div>
+          <div class="insight-item-text">O famoso bug de direção do Pinky (mira diagonal quando o Pac-Man sobe) nunca foi corrigido em 40 anos. Porque cria imprevisibilidade adicional que enriquece o jogo. Um dos primeiros exemplos documentados de "bug como feature" no design de jogos.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- IMPACTO -->
+<section class="impact-section" id="impacto">
+  <div class="section-inner">
+    <p class="section-label reveal">IMPACTO E LEGADO</p>
+    <h2 class="section-title reveal">Os números de um produto<br>que <span class="accent">redefiniu indústrias</span></h2>
+    <div class="impact-numbers reveal">
+      <div class="impact-number-item">
+        <span class="impact-num">$14B+</span>
+        <div class="impact-desc">Receita total da franquia até 2016, incluindo arcades, consoles, mobile e licenciamentos</div>
+      </div>
+      <div class="impact-number-item">
+        <span class="impact-num">10B+</span>
+        <div class="impact-desc">Partidas jogadas até 1982, equivalente a uma partida por pessoa no planeta naquela época</div>
+      </div>
+      <div class="impact-number-item">
+        <span class="impact-num">500+</span>
+        <div class="impact-desc">Produtos licenciados em 1982, de telefones AT&T a cereais matinais e joias de $20.000</div>
+      </div>
+    </div>
+    <div class="impact-quote-block reveal">
+      <p class="impact-quote">"Toru Iwatani queria desenvolver um jogo não violento para adolescentes e casais, não apenas para homens. O MoMA o considera uma obra de design porque ele entendeu os comportamentos humanos que um videogame pode provocar."</p>
+      <p class="impact-quote-attr">— Paola Antonelli, Curadora Sênior de Arquitetura e Design, MoMA</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ANÁLISE PM -->
+<section class="pm-section">
+  <div class="section-inner">
+    <p class="section-label reveal">ANÁLISE DE PRODUTO</p>
+    <h2 class="section-title reveal">O que enxerga quem pensa<br>como quem decide sobre produto<br>ao olhar para <span class="accent">Pac-Man</span></h2>
+    <div class="pm-grid reveal">
+      <div class="pm-col">
+        <div class="pm-col-header">
+          <div class="pm-dot" style="background:var(--green);color:var(--green)"></div>
+          <span class="pm-col-title">O QUE ACERTOU</span>
+        </div>
+        <div class="pm-items">
+          <div class="pm-item">Definiu o usuário antes de definir o produto. Iwatani começou com "mulheres e casais", não com "mecânica de jogo".</div>
+          <div class="pm-item">Barreira de entrada zero. Um joystick. Nenhum tutorial. Qualquer pessoa jogava em 10 segundos.</div>
+          <div class="pm-item">Conceito universal e culturalmente neutro. A fome é humana. Não requer contexto.</div>
+          <div class="pm-item">Personagem com identidade. Criou o template para mascotes de marca em toda a indústria.</div>
+          <div class="pm-item">Loop de engajamento perfeito: tensão, catarse, recompensa e próximo nível.</div>
+        </div>
+      </div>
+      <div class="pm-col">
+        <div class="pm-col-header">
+          <div class="pm-dot" style="background:var(--yellow);color:var(--yellow)"></div>
+          <span class="pm-col-title">TENSÕES DO PROJETO</span>
+        </div>
+        <div class="pm-items">
+          <div class="pm-item">Restrição de hardware extrema: 2KB de RAM que forçou toda a elegância do sistema de IA.</div>
+          <div class="pm-item">Lançamento moderado no Japão. O produto só explodiu no mercado americano, um exemplo de product-market fit regional.</div>
+          <div class="pm-item">Iwatani não recebeu bônus nem aumento de salário pelo sucesso. Uma decisão de empresa que hoje seria impensável.</div>
+          <div class="pm-item">O nome original foi alterado antes de entrar em produção nos EUA por razão de proteção de marca, não de produto.</div>
+        </div>
+      </div>
+      <div class="pm-col">
+        <div class="pm-col-header">
+          <div class="pm-dot" style="background:var(--cyan);color:var(--cyan)"></div>
+          <span class="pm-col-title">LIÇÕES PARA HOJE</span>
+        </div>
+        <div class="pm-items">
+          <div class="pm-item">Simplicidade não é falta de profundidade. Pac-Man tem uma interface simples e um sistema complexo. O usuário vê a superfície e sente a profundidade.</div>
+          <div class="pm-item">Restrição gera criatividade. Menos memória disponível resultou em mais personalidade por personagem.</div>
+          <div class="pm-item">Bugs podem enriquecer um produto. O comportamento errático do Pinky nunca foi corrigido porque tornava o jogo melhor.</div>
+          <div class="pm-item">Inclusão como estratégia de crescimento. Ao mirar em quem não jogava, Pac-Man dobrou o mercado disponível.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- JOGO -->
+<section class="game-section" id="jogo">
+  <div class="section-inner">
+    <p class="section-label reveal" style="justify-content:center">EXPERIÊNCIA INTERATIVA</p>
+    <h2 class="section-title reveal">Jogue agora.<br><span class="accent">Sinta a mecânica.</span></h2>
+    <p class="section-body reveal" style="margin:0 auto 8px;text-align:center">Use as setas do teclado para mover o Pac-Man. No celular, deslize na tela do jogo.</p>
+  </div>
+  <div class="game-wrapper reveal">
+    <div class="game-frame">
+      <canvas id="pacman-canvas" width="420" height="460"></canvas>
+      <div class="game-ui">
+        <div>
+          <div class="game-score-label">PONTUAÇÃO</div>
+          <div class="game-score-val" id="score-display">0</div>
+        </div>
+        <div>
+          <div class="game-score-label">VIDAS</div>
+          <div class="game-score-val" id="lives-display">♦ ♦ ♦</div>
+        </div>
+        <div class="game-controls">
+          ↑ ↓ ← → mover<br>
+          deslize no celular
+        </div>
+      </div>
+      <div class="game-overlay" id="game-overlay">
+        <div class="game-overlay-title" id="overlay-title">PAC-MAN</div>
+        <div class="game-overlay-sub" id="overlay-sub">PRESSIONE INICIAR PARA JOGAR</div>
+        <div class="game-overlay-score" id="overlay-score"></div>
+        <button class="btn-start" id="btn-start">INICIAR</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- CONCLUSÃO -->
+<section class="conclusion-section">
+  <div class="section-inner">
+    <p class="section-label reveal">CONCLUSÃO</p>
+    <h2 class="conclusion-quote reveal">
+      Pac-Man não foi um jogo.<br>
+      Foi uma <span>decisão de produto</span><br>
+      disfarçada de entretenimento.
+    </h2>
+    <div class="conclusion-cards reveal">
+      <div class="conclusion-card">
+        <span class="conclusion-card-badge">PRÓXIMO PROJETO DA SÉRIE</span>
+        <div class="conclusion-card-title">Tetris</div>
+        <div class="conclusion-card-text">Como um engenheiro soviético criou o jogo mais vendido da história trabalhando em um computador do governo, sem nunca ver um centavo de royalty por décadas.</div>
+      </div>
+      <div class="conclusion-card">
+        <span class="conclusion-card-badge">EM BREVE</span>
+        <div class="conclusion-card-title">Doom</div>
+        <div class="conclusion-card-text">O jogo que inventou o engine moderno de FPS, o shareware como modelo de negócio e o modding como estratégia de comunidade, tudo ao mesmo tempo.</div>
+      </div>
+      <div class="conclusion-card">
+        <span class="conclusion-card-badge">EM BREVE</span>
+        <div class="conclusion-card-title">Minecraft</div>
+        <div class="conclusion-card-text">De protótipo de 6 dias criado por uma única pessoa a franquia de $2,5 bilhões comprada pela Microsoft. A maior história de bootstrap da história dos games.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-left">Série: Produtos que Mudaram o Mundo · Games Edition</div>
+  <div class="footer-right">PAC-MAN © 1980 BANDAI NAMCO Entertainment Inc.</div>
+</footer>
+
+<!-- GAME ENGINE -->
+<script>
+(function(){
+'use strict';
+
+const canvas = document.getElementById('pacman-canvas');
+const ctx    = canvas.getContext('2d');
+const W = canvas.width;   // 420
+const H = canvas.height;  // 460
+const TS = 20; // tile size in pixels
+
+/*
+  MAZE KEY
+  0 = wall
+  1 = dot
+  2 = empty corridor (no dot)
+  3 = power pellet
+  4 = ghost house (impassable for Pac-Man, passable for ghosts exiting)
+  5 = ghost house door (top of cage — ghosts can exit here)
+
+  The tunnel row (row 10) has value 2 at columns 0 and 20
+  so Pac-Man can wrap through both ends.
+
+  The ghost house is centred around columns 8-12, rows 9-11.
+  Ghosts spawn inside (cell 4) and exit via the top (cell 5 or open).
+  Pac-Man CANNOT enter cells 4 or 5.
+*/
+const MAZE_W = 21;
+const MAZE_H = 23;
+
+// prettier-ignore
+const mazeTemplate = [
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], // row 0
+  [0,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0], // row 1
+  [0,3,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,3,0], // row 2
+  [0,1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,1,0], // row 3
+  [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0], // row 4
+  [0,1,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,1,0], // row 5
+  [0,1,1,1,1,0,1,1,1,0,0,0,1,1,1,0,1,1,1,1,0], // row 6
+  [0,0,0,0,1,0,0,0,2,0,0,0,2,0,0,0,1,0,0,0,0], // row 7
+  [0,0,0,0,1,0,2,2,2,2,2,2,2,2,2,0,1,0,0,0,0], // row 8
+  [0,0,0,0,1,0,2,0,4,4,4,4,4,0,2,0,1,0,0,0,0], // row 9  ghost house top
+  [2,2,2,2,1,2,2,0,4,4,4,4,4,0,2,2,1,2,2,2,2], // row 10 tunnel
+  [0,0,0,0,1,0,2,0,4,4,4,4,4,0,2,0,1,0,0,0,0], // row 11 ghost house bottom
+  [0,0,0,0,1,0,2,2,2,2,2,2,2,2,2,0,1,0,0,0,0], // row 12
+  [0,0,0,0,1,0,2,0,0,0,0,0,0,0,2,0,1,0,0,0,0], // row 13
+  [0,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,0], // row 14
+  [0,1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,1,0], // row 15
+  [0,3,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,3,0], // row 16
+  [0,0,1,0,1,0,1,0,0,0,0,0,0,0,1,0,1,0,1,0,0], // row 17
+  [0,1,1,1,1,0,1,1,1,0,0,0,1,1,1,0,1,1,1,1,0], // row 18
+  [0,1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1,0], // row 19
+  [0,1,1,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,0], // row 20  centre of bottom
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], // row 21
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], // row 22
+];
+
+// Canvas offsets so the maze is centred
+const OX = Math.floor((W - MAZE_W * TS) / 2); // = 0 for 420px wide maze
+const OY = Math.floor((H - MAZE_H * TS) / 2) + 4; // small top margin
+
+let maze, score, lives, state, animFrame;
+let pacman, ghosts, dotsLeft;
+
+/* ── HELPERS ────────────────────────────────────────────────── */
+
+function isWallForPac(tx, ty) {
+  if (tx < 0 || tx >= MAZE_W || ty < 0 || ty >= MAZE_H) return false; // tunnel wrap
+  const c = maze[ty][tx];
+  return c === 0 || c === 4; // walls + ghost house
+}
+
+function isWallForGhost(tx, ty) {
+  if (tx < 0 || tx >= MAZE_W || ty < 0 || ty >= MAZE_H) return true; // out of bounds = wall
+  return maze[ty][tx] === 0; // only hard walls block ghosts; tile 4 (house interior) is passable
+}
+
+function wrapTile(tx) {
+  if (tx < 0) return MAZE_W - 1;
+  if (tx >= MAZE_W) return 0;
+  return tx;
+}
+
+// Pixel centre of a tile
+function centerOf(tx, ty) {
+  return {
+    x: tx * TS + OX + TS / 2,
+    y: ty * TS + OY + TS / 2
+  };
+}
+
+/* ── INIT ───────────────────────────────────────────────────── */
+
+function initGame() {
+  maze = mazeTemplate.map(r => [...r]);
+  score = 0;
+  lives = 3;
+  state = 'playing';
+
+  document.getElementById('game-overlay').style.display = 'none';
+
+  // Count dots
+  dotsLeft = 0;
+  maze.forEach(r => r.forEach(c => { if (c === 1 || c === 3) dotsLeft++; }));
+
+  // Pac-Man starts on row 16, column 10
+  const pStart = centerOf(10, 16);
+  pacman = {
+    x: pStart.x, y: pStart.y,
+    tx: 10, ty: 16,
+    dx: 0, dy: 0,
+    ndx: -1, ndy: 0,        // initial queued direction: left
+    speed: 1.6,
+    mouthAngle: 0.05,
+    mouthDir: 1,
+    dead: false,
+    deadTimer: 0
+  };
+
+  /*
+    Ghost spawn positions (inside the ghost house):
+    Blinky starts just outside (row 8, col 10) so he immediately chases.
+    Pinky, Inky, Clyde start inside the house and exit after a delay.
+  */
+  const ghostDefs = [
+    { color:'#FF3333', name:'Blinky', tx:10, ty:8,  speed:1.4, exitDelay:0   },
+    { color:'#FF69B4', name:'Pinky',  tx:10, ty:10, speed:1.3, exitDelay:120 },
+    { color:'#00FFFF', name:'Inky',   tx:9,  ty:10, speed:1.3, exitDelay:240 },
+    { color:'#FF8C00', name:'Clyde',  tx:11, ty:10, speed:1.3, exitDelay:360 },
+  ];
+
+  ghosts = ghostDefs.map((def, i) => {
+    const pos = centerOf(def.tx, def.ty);
+    return {
+      x: pos.x, y: pos.y,
+      tx: def.tx, ty: def.ty,
+      dx: (i === 0) ? -1 : 0,  // Blinky starts moving left, others wait
+      dy: 0,
+      color: def.color,
+      name: def.name,
+      frightened: false,
+      frightenTimer: 0,
+      dead: false,
+      deadTimer: 0,
+      speed: def.speed,
+      exitDelay: def.exitDelay,
+      exitTimer: 0,
+      exited: def.exitDelay === 0  // Blinky is already outside
+    };
+  });
+
+  updateUI();
+}
+
+/* ── PACMAN MOVEMENT ────────────────────────────────────────── */
+
+function movePacman() {
+  const p = pacman;
+
+  // Handle death animation
+  if (p.dead) {
+    p.deadTimer++;
+    if (p.deadTimer > 70) {
+      lives--;
+      if (lives <= 0) { endGame(); return; }
+      resetPositions();
+    }
+    return;
+  }
+
+  const c   = centerOf(p.tx, p.ty);
+  const thr = p.speed + 1;
+
+  if (Math.abs(p.x - c.x) <= thr && Math.abs(p.y - c.y) <= thr) {
+    // Snap to tile centre
+    p.x = c.x;
+    p.y = c.y;
+
+    // Try queued direction
+    if (p.ndx !== 0 || p.ndy !== 0) {
+      const ntx = wrapTile(p.tx + p.ndx);
+      const nty = p.ty + p.ndy;
+      if (!isWallForPac(ntx, nty)) {
+        p.dx = p.ndx;
+        p.dy = p.ndy;
+      }
+    }
+
+    // Advance to next tile if not blocked
+    const ntx2 = wrapTile(p.tx + p.dx);
+    const nty2 = p.ty + p.dy;
+    if (!isWallForPac(ntx2, nty2) && (p.dx !== 0 || p.dy !== 0)) {
+      // Detect horizontal tunnel wrap and teleport pixel position instantly
+      if (ntx2 !== p.tx + p.dx) {
+        const newCenter = centerOf(ntx2, nty2);
+        p.x = newCenter.x;
+        p.y = newCenter.y;
+      }
+      p.tx = ntx2;
+      p.ty = nty2;
+      // Wrap Y too (shouldn't happen in standard maze but guard anyway)
+      if (p.ty < 0) p.ty = 0;
+      if (p.ty >= MAZE_H) p.ty = MAZE_H - 1;
+    } else {
+      p.dx = 0;
+      p.dy = 0;
+    }
+  } else {
+    // Pixel movement toward current target tile, no overshoot
+    // Re-read centre in case tile was teleported this frame
+    const c2   = centerOf(p.tx, p.ty);
+    const rem = { x: c2.x - p.x, y: c2.y - p.y };
+    const step = { x: p.dx * p.speed, y: p.dy * p.speed };
+    if (rem.x !== 0 && Math.sign(step.x) === Math.sign(rem.x))
+      p.x += Math.min(Math.abs(step.x), Math.abs(rem.x)) * Math.sign(step.x);
+    if (rem.y !== 0 && Math.sign(step.y) === Math.sign(rem.y))
+      p.y += Math.min(Math.abs(step.y), Math.abs(rem.y)) * Math.sign(step.y);
+  }
+
+  // Eat
+  if (maze[p.ty] !== undefined) {
+    const cell = maze[p.ty][p.tx];
+    if (cell === 1) {
+      maze[p.ty][p.tx] = 2; score += 10; dotsLeft--;
+    } else if (cell === 3) {
+      maze[p.ty][p.tx] = 2; score += 50; dotsLeft--;
+      ghosts.forEach(g => {
+        if (!g.dead) { g.frightened = true; g.frightenTimer = 360; }
+      });
+    }
+    if (dotsLeft <= 0) { winGame(); return; }
+  }
+
+  // Mouth animation
+  p.mouthAngle += 0.055 * p.mouthDir;
+  if (p.mouthAngle >= 0.28 || p.mouthAngle <= 0.01) p.mouthDir *= -1;
+}
+
+/* ── GHOST MOVEMENT ─────────────────────────────────────────── */
+
+// Smoothly move ghost one pixel-step toward pixel centre of (tx, ty).
+// Returns true when the ghost has snapped onto that tile centre.
+function ghostStepToward(g, targetTx, targetTy) {
+  const dest = centerOf(targetTx, targetTy);
+  const dx   = dest.x - g.x;
+  const dy   = dest.y - g.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (dist <= g.speed + 0.5) {
+    // Arrived — snap exactly
+    g.x  = dest.x;
+    g.y  = dest.y;
+    g.tx = targetTx;
+    g.ty = targetTy;
+    return true;
+  }
+
+  g.x += (dx / dist) * g.speed;
+  g.y += (dy / dist) * g.speed;
+  return false;
+}
+
+const EXIT_COL = 10; // column of the ghost house door
+const EXIT_ROW = 8;  // row just above the ghost house door
+const HOUSE_COL = 10;
+
+function moveGhost(g) {
+
+  // ── PHASE 1: DEAD — invisible, counting down to respawn ──────
+  if (g.dead) {
+    g.deadTimer++;
+    if (g.deadTimer >= 90) {
+      g.dead       = false;
+      g.deadTimer  = 0;
+      g.frightened    = false;
+      g.frightenTimer = 0;
+      // Place ghost back inside house centre, start fresh exit sequence
+      g.tx = HOUSE_COL;
+      g.ty = 10;
+      const hp = centerOf(g.tx, g.ty);
+      g.x  = hp.x;
+      g.y  = hp.y;
+      g.dx = 0;
+      g.dy = 0;
+      g.exited    = false;
+      g.exitTimer = 0; // fresh countdown
+    }
+    return;
+  }
+
+  // ── PHASE 2: INSIDE HOUSE — wait, then exit tile by tile ─────
+  if (!g.exited) {
+    g.exitTimer++;
+    if (g.exitTimer < g.exitDelay) return; // still waiting
+
+    // Step 1: align to centre column (HOUSE_COL)
+    if (g.tx !== HOUSE_COL) {
+      ghostStepToward(g, HOUSE_COL, g.ty);
+      return;
+    }
+
+    // Step 2: move upward one tile at a time until EXIT_ROW
+    if (g.ty > EXIT_ROW) {
+      if (ghostStepToward(g, HOUSE_COL, g.ty - 1)) {
+        // arrived at next tile upward — ty was updated by ghostStepToward
+      }
+      return;
+    }
+
+    // Step 3: snap to exit tile and start roaming
+    g.tx = EXIT_COL;
+    g.ty = EXIT_ROW;
+    const ep = centerOf(g.tx, g.ty);
+    g.x  = ep.x;
+    g.y  = ep.y;
+    g.exited = true;
+    g.dx = (Math.random() < 0.5) ? -1 : 1;
+    g.dy = 0;
+    return;
+  }
+
+  // ── PHASE 3: FRIGHTENED timer ────────────────────────────────
+  if (g.frightened) {
+    g.frightenTimer--;
+    if (g.frightenTimer <= 0) g.frightened = false;
+  }
+
+  // ── PHASE 4: ROAMING — tile-based pathfinding ────────────────
+  const c   = centerOf(g.tx, g.ty);
+  const thr = g.speed + 1.5;
+
+  if (Math.abs(g.x - c.x) <= thr && Math.abs(g.y - c.y) <= thr) {
+    // Snap to tile centre
+    g.x = c.x;
+    g.y = c.y;
+
+    const dirs = [
+      { dx:  1, dy:  0 },
+      { dx: -1, dy:  0 },
+      { dx:  0, dy:  1 },
+      { dx:  0, dy: -1 },
+    ];
+
+    // Valid directions: passable, not a 180° reversal
+    let valid = dirs.filter(d => {
+      const nx = wrapTile(g.tx + d.dx);
+      const ny = g.ty + d.dy;
+      if (ny < 0 || ny >= MAZE_H) return false;
+      if (isWallForGhost(nx, ny))  return false;
+      if (d.dx === -g.dx && d.dy === -g.dy) return false; // no U-turn
+      return true;
+    });
+
+    // Dead-end: allow reversal
+    if (valid.length === 0) {
+      valid = dirs.filter(d => {
+        const nx = wrapTile(g.tx + d.dx);
+        const ny = g.ty + d.dy;
+        if (ny < 0 || ny >= MAZE_H) return false;
+        return !isWallForGhost(nx, ny);
+      });
+    }
+    if (valid.length === 0) return;
+
+    let chosen;
+    if (g.frightened) {
+      chosen = valid[Math.floor(Math.random() * valid.length)];
+    } else {
+      let best = Infinity;
+      valid.forEach(d => {
+        const nx   = wrapTile(g.tx + d.dx);
+        const ny   = g.ty + d.dy;
+        const dist = Math.abs(nx - pacman.tx) + Math.abs(ny - pacman.ty);
+        if (dist < best) { best = dist; chosen = d; }
+      });
+    }
+
+    g.dx = chosen.dx;
+    g.dy = chosen.dy;
+    const rawTx = g.tx + g.dx;
+    const wrappedTx = wrapTile(rawTx);
+    // Detect horizontal tunnel wrap and teleport pixel position instantly
+    if (wrappedTx !== rawTx) {
+      const newCenter = centerOf(wrappedTx, Math.max(0, Math.min(MAZE_H - 1, g.ty + g.dy)));
+      g.x = newCenter.x;
+      g.y = newCenter.y;
+    }
+    g.tx = wrappedTx;
+    g.ty = Math.max(0, Math.min(MAZE_H - 1, g.ty + g.dy));
+
+  } else {
+    // Pixel-move toward current tile centre, no overshoot
+    // After a tunnel wrap the ghost is already snapped — skip pixel step
+    const rem  = { x: c.x - g.x, y: c.y - g.y };
+    const step = { x: g.dx * g.speed, y: g.dy * g.speed };
+    if (rem.x !== 0 && Math.sign(step.x) === Math.sign(rem.x))
+      g.x += Math.min(Math.abs(step.x), Math.abs(rem.x)) * Math.sign(step.x);
+    if (rem.y !== 0 && Math.sign(step.y) === Math.sign(rem.y))
+      g.y += Math.min(Math.abs(step.y), Math.abs(rem.y)) * Math.sign(step.y);
+  }
+
+  // ── COLLISION ────────────────────────────────────────────────
+  if (!pacman.dead) {
+    const dist = Math.hypot(g.x - pacman.x, g.y - pacman.y);
+    if (dist < TS * 0.75) {
+      if (g.frightened) {
+        g.frightened    = false;
+        g.dead          = true;
+        g.deadTimer     = 0;
+        score += 200;
+      } else {
+        pacman.dead      = true;
+        pacman.deadTimer = 0;
+      }
+    }
+  }
+}
+
+/* ── RESET / END ────────────────────────────────────────────── */
+
+function resetPositions() {
+  const pStart = centerOf(10, 16);
+  pacman.x = pStart.x; pacman.y = pStart.y;
+  pacman.tx = 10; pacman.ty = 16;
+  pacman.dx = 0;  pacman.dy = 0;
+  pacman.ndx = -1; pacman.ndy = 0;
+  pacman.dead = false; pacman.deadTimer = 0;
+  pacman.mouthAngle = 0.05; pacman.mouthDir = 1;
+
+  ghosts.forEach((g, i) => {
+    const defs = [
+      { tx:10, ty:8,  exitDelay:0,   exited:true  },
+      { tx:10, ty:10, exitDelay:80,  exited:false },
+      { tx:9,  ty:10, exitDelay:180, exited:false },
+      { tx:11, ty:10, exitDelay:280, exited:false },
+    ];
+    const pos = centerOf(defs[i].tx, defs[i].ty);
+    g.x = pos.x; g.y = pos.y;
+    g.tx = defs[i].tx; g.ty = defs[i].ty;
+    g.dx = (i === 0) ? -1 : 0;
+    g.dy = (i === 0) ?  0 : 0;
+    g.frightened = false; g.frightenTimer = 0;
+    g.dead = false; g.deadTimer = 0;
+    g.exited    = defs[i].exited;
+    g.exitDelay = defs[i].exitDelay;
+    g.exitTimer = 0; // always start fresh — critical fix
+  });
+}
+
+function endGame() {
+  state = 'gameover';
+  cancelAnimationFrame(animFrame);
+  const ov = document.getElementById('game-overlay');
+  ov.style.display = 'flex';
+  document.getElementById('overlay-title').textContent  = 'GAME OVER';
+  document.getElementById('overlay-sub').textContent    = '';
+  document.getElementById('overlay-score').textContent  = 'PONTUAÇÃO: ' + score;
+  document.getElementById('btn-start').textContent      = 'JOGAR NOVAMENTE';
+}
+
+function winGame() {
+  state = 'win';
+  cancelAnimationFrame(animFrame);
+  const ov = document.getElementById('game-overlay');
+  ov.style.display = 'flex';
+  document.getElementById('overlay-title').textContent  = 'VITÓRIA!';
+  document.getElementById('overlay-sub').textContent    = 'TODOS OS PONTOS COMIDOS';
+  document.getElementById('overlay-score').textContent  = 'PONTUAÇÃO: ' + score;
+  document.getElementById('btn-start').textContent      = 'JOGAR NOVAMENTE';
+}
+
+/* ── DRAW ───────────────────────────────────────────────────── */
+
+function drawMaze() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  const now = Date.now();
+
+  for (let ty = 0; ty < MAZE_H; ty++) {
+    for (let tx = 0; tx < MAZE_W; tx++) {
+      const px = tx * TS + OX;
+      const py = ty * TS + OY;
+      const cell = maze[ty][tx];
+
+      if (cell === 0) {
+        // Wall: cyberpunk blue with neon outline
+        ctx.fillStyle = '#08088a';
+        ctx.fillRect(px, py, TS, TS);
+        ctx.strokeStyle = 'rgba(30,120,255,0.45)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px + 0.5, py + 0.5, TS - 1, TS - 1);
+      } else if (cell === 1) {
+        // Small dot
+        ctx.fillStyle = '#FFD700';
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 5;
+        ctx.beginPath();
+        ctx.arc(px + TS / 2, py + TS / 2, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      } else if (cell === 3) {
+        // Power pellet — pulsing cyan
+        const alpha = 0.55 + 0.45 * Math.sin(now / 350);
+        ctx.fillStyle = `rgba(0,255,255,${alpha})`;
+        ctx.shadowColor = '#00FFFF';
+        ctx.shadowBlur = 14;
+        ctx.beginPath();
+        ctx.arc(px + TS / 2, py + TS / 2, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      // cell 2 (empty) and cell 4 (ghost house) — render as black, already filled
+    }
+  }
+}
+
+function drawPacman() {
+  const p = pacman;
+
+  if (p.dead) {
+    if (p.deadTimer > 60) return;
+    const prog  = p.deadTimer / 60;
+    const angle = prog * Math.PI;
+    ctx.fillStyle    = '#FFD700';
+    ctx.shadowColor  = 'rgba(255,215,0,0.9)';
+    ctx.shadowBlur   = 14;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.arc(p.x, p.y, TS / 2 - 1, angle, Math.PI * 2 - angle);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    return;
+  }
+
+  // Direction → base angle
+  const angles = { '1,0': 0, '-1,0': Math.PI, '0,1': Math.PI/2, '0,-1': -Math.PI/2 };
+  const baseAngle = angles[`${p.dx},${p.dy}`] ?? 0;
+  const mouth     = p.mouthAngle * Math.PI;
+
+  ctx.fillStyle    = '#FFD700';
+  ctx.shadowColor  = 'rgba(255,215,0,0.8)';
+  ctx.shadowBlur   = 12;
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+  ctx.arc(p.x, p.y, TS / 2 - 1, baseAngle + mouth, baseAngle + Math.PI * 2 - mouth);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Eye
+  const ex = p.x + Math.cos(baseAngle - Math.PI / 4) * 4;
+  const ey = p.y + Math.sin(baseAngle - Math.PI / 4) * 4;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(ex, ey, 1.6, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawGhost(g) {
+  if (g.dead) return; // invisible while respawning
+
+  const r   = TS / 2 - 1;
+  let   col = g.color;
+
+  if (g.frightened) {
+    const blink = g.frightenTimer < 100 && Math.floor(Date.now() / 180) % 2 === 0;
+    col = blink ? '#FFFFFF' : '#2222CC';
+  }
+
+  ctx.fillStyle   = col;
+  ctx.shadowColor = col;
+  ctx.shadowBlur  = 12;
+
+  // Dome
+  ctx.beginPath();
+  ctx.arc(g.x, g.y - 2, r, Math.PI, 0, false);
+  ctx.lineTo(g.x + r, g.y + r);
+
+  // Wavy skirt (3 bumps)
+  for (let i = 0; i < 3; i++) {
+    const bx = g.x + r - i * (2 * r / 3);
+    ctx.quadraticCurveTo(bx - r / 3, g.y + r + 5, bx - 2 * r / 3, g.y + r);
+  }
+
+  ctx.lineTo(g.x - r, g.y + r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  if (!g.frightened) {
+    // Sclera
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath(); ctx.ellipse(g.x - 4, g.y - 3, 3, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(g.x + 4, g.y - 3, 3, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // Pupils tracking direction
+    ctx.fillStyle = '#00008B';
+    ctx.beginPath(); ctx.arc(g.x - 4 + g.dx * 1.5, g.y - 3 + g.dy * 1.5, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(g.x + 4 + g.dx * 1.5, g.y - 3 + g.dy * 1.5, 2, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // Frightened — white dot eyes
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath(); ctx.arc(g.x - 4, g.y - 2, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(g.x + 4, g.y - 2, 2.5, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+/* ── UI ─────────────────────────────────────────────────────── */
+
+function updateUI() {
+  document.getElementById('score-display').textContent  = score;
+  const livesMap = { 0:'', 1:'♦', 2:'♦ ♦', 3:'♦ ♦ ♦' };
+  document.getElementById('lives-display').textContent  = livesMap[Math.max(0, Math.min(3, lives))] || '';
+}
+
+/* ── GAME LOOP ──────────────────────────────────────────────── */
+
+function gameLoop() {
+  if (state !== 'playing') return;
+  movePacman();
+  ghosts.forEach(moveGhost);
+  drawMaze();
+  drawPacman();
+  ghosts.forEach(drawGhost);
+  updateUI();
+  animFrame = requestAnimationFrame(gameLoop);
+}
+
+/* ── CONTROLS ───────────────────────────────────────────────── */
+
+document.addEventListener('keydown', function(e) {
+  if (!pacman || state !== 'playing') return;
+  const map = {
+    ArrowLeft:  { ndx:-1, ndy: 0 },
+    ArrowRight: { ndx: 1, ndy: 0 },
+    ArrowUp:    { ndx: 0, ndy:-1 },
+    ArrowDown:  { ndx: 0, ndy: 1 },
+  };
+  if (map[e.key]) {
+    e.preventDefault();
+    pacman.ndx = map[e.key].ndx;
+    pacman.ndy = map[e.key].ndy;
+  }
+});
+
+let touchStart = { x: 0, y: 0 };
+
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+}, { passive: false });
+
+canvas.addEventListener('touchend', function(e) {
+  e.preventDefault();
+  if (!pacman || state !== 'playing') return;
+  const dx = e.changedTouches[0].clientX - touchStart.x;
+  const dy = e.changedTouches[0].clientY - touchStart.y;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    pacman.ndx = dx > 0 ? 1 : -1; pacman.ndy = 0;
+  } else {
+    pacman.ndx = 0; pacman.ndy = dy > 0 ? 1 : -1;
+  }
+}, { passive: false });
+
+document.getElementById('btn-start').addEventListener('click', function() {
+  cancelAnimationFrame(animFrame);
+  initGame();
+  animFrame = requestAnimationFrame(gameLoop);
+});
+
+// Initial dark canvas
+ctx.fillStyle = '#000';
+ctx.fillRect(0, 0, W, H);
+
+})();
+</script>
+
+<!-- SCROLL REVEAL -->
+<script>
+(function(){
+  const reveals = document.querySelectorAll('.reveal');
+  const obs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        obs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+  reveals.forEach(function(el) { obs.observe(el); });
+})();
+</script>
+</body>
+</html>
